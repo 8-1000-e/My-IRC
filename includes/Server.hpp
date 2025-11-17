@@ -6,7 +6,7 @@
 /*   By: edubois- <edubois-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/16 13:41:07 by edubois-          #+#    #+#             */
-/*   Updated: 2025/11/16 18:55:11 by edubois-         ###   ########.fr       */
+/*   Updated: 2025/11/17 13:31:23 by edubois-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,13 +20,19 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <string>
+#include <csignal>
+#include <signal.h>
 #include <arpa/inet.h>
 #include <sstream>
 #include <unistd.h> 
 #include <sys/types.h>
+#include <cstring>
 #include <unistd.h>
 #include <fcntl.h>
+#include "Replies.hpp"
 #include <string.h>
+#include <cstdlib>
+#include <utility>
 #include "Channel.hpp"
 
 // texte color
@@ -73,6 +79,7 @@ class Server
     public:
         Server();
         ~Server();
+        Server(Server const &src);
         
         void    ServerInit(int port, std::string password);
         void    CreateServSocket();
@@ -97,6 +104,50 @@ class Server
         void                        _sendResponse(std::string response, int fd);
         void                        SignalHandler(int signum);
         void	                    close_fds();
+        Channel                     *GetChannel(std::string name);
+        Server                      &operator=(Server const &src);
+        Client                      *GetServerClientNick(std::string nickname);
+        void                        SetFd(int fd);
+        void                        SetPort(int port);
+        void                        SetPassword(std::string password);
+        std::string                 GetPassword();
+        void                        AddClient(Client newClient);
+        bool                        Server::notregistered(int fd);
+        void                        AddChannel(Channel newChannel);
+        void                        AddFds(pollfd newFd);
+        std::vector<std::string>    splitCmd(std::string& cmd);
+        void                        clientAuth(int fd, std::string cmd);
+        bool                        isValidNickname(std::string& nickname);
+        bool                        nickNameInUse(std::string& nickname);
+        void                        setNickname(std::string cmd, int fd);
+        void                        set_username(std::string& cmd, int fd);
+        void	                    JOIN(std::string cmd, int fd);
+	    int		                    SplitJoin(std::vector<std::pair<std::string, std::string> > &token, std::string cmd, int fd);
+	    void	                    ExistCh(std::vector<std::pair<std::string, std::string> >&token, int i, int j, int fd);
+	    void	                    NotExistCh(std::vector<std::pair<std::string, std::string> >&token, int i, int fd);
+	    int		                    SearchForClients(std::string nickname);
+	    void	                    PART(std::string cmd, int fd);
+	    int		                    SplitCmdPart(std::string cmd, std::vector<std::string> &tmp, std::string &reason, int fd);
+	    void	                    KICK(std::string cmd, int fd);
+	    std::string                 SplitCmdKick(std::string cmd, std::vector<std::string> &tmp, std::string &user, int fd);
+	    void	                    PRIVMSG(std::string cmd, int fd);
+	    void	                    CheckForChannels_Clients(std::vector<std::string> &tmp, int fd);
+	    void	                    QUIT(std::string cmd, int fd);
+	    void 		                mode_command(std::string& cmd, int fd);
+	    std::string                 invite_only(Channel *channel, char opera, std::string chain);
+	    std::string                 topicRestriction(Channel *channel ,char opera, std::string chain);
+	    std::string                 password_mode(std::vector<std::string> splited, Channel *channel, size_t &pos, char opera, int fd, std::string chain, std::string& arguments);
+	    std::string                 operator_privilege(std::vector<std::string> splited, Channel *channel, size_t& pos, int fd, char opera, std::string chain, std::string& arguments);
+	    std::string                 channel_limit(std::vector<std::string> splited, Channel *channel, size_t &pos, char opera, int fd, std::string chain, std::string& arguments);
+	    bool		                isvalid_limit(std::string& limit);
+	    std::string                 mode_toAppend(std::string chain, char opera, char mode);
+	    std::vector<std::string>    splitParams(std::string params);
+	    void                        getCmdArgs(std::string cmd,std::string& name, std::string& modeset ,std::string &params);
+	    std::string                 tTopic();
+	    void                        Topic(std::string &cmd, int &fd);
+	    void                        Invite(std::string &cmd, int &fd);
+	    std::string                 gettopic(std::string& input);
+	    int                         getpos(std::string &cmd);
 
 };
 

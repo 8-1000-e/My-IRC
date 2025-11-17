@@ -5,29 +5,54 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: edubois- <edubois-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/11/16 14:01:54 by edubois-          #+#    #+#             */
-/*   Updated: 2025/11/16 18:24:07 by edubois-         ###   ########.fr       */
+/*   Created: 2025/11/17 11:25:53 by edubois-          #+#    #+#             */
+/*   Updated: 2025/11/17 11:26:02 by edubois-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
-#include <iostream>
+#include "Server.hpp"
+#include "Channel.hpp"
 
 class Client
 {
-    private:
-        int Fd;
-        std::string IPadd;
-        
-    public:
-        Client();
-        ~Client();
-        
-        int     GetFd;
-        void    SetFd(int fd);
-        void    SetIPadd(std::string IPadd);
+private:
+	int fd;
+	bool isOperator;
+	bool registered;
+	std::string nickname;
+	bool logedin;
+	std::string username;
+	std::string buffer;
+	std::string ipadd;
+	std::vector<std::string> ChannelsInvite;
+public:
+	Client();
+	Client(std::string nickname, std::string username, int fd);
+	~Client();
+	Client(Client const &src);
+	Client &operator=(Client const &src);
+	int GetFd();
+	bool getRegistered();
+	bool GetInviteChannel(std::string &ChName);
+	std::string GetNickName();
+	bool 		GetLogedIn();
+	std::string GetUserName();
+	std::string getIpAdd();
+	std::string getBuffer();
+	std::string getHostname();
+	void SetFd(int fd);
+	void SetNickname(std::string& nickName);
+	void setLogedin(bool value);
+	void SetUsername(std::string& username);
+	void setBuffer(std::string recived);
+	void setRegistered(bool value);
+	void setIpAdd(std::string ipadd);
+	void clearBuffer();
+	void AddChannelInvite(std::string &chname);
+	void RmChannelInvite(std::string &chname);
 };
 
 #endif

@@ -6,15 +6,31 @@
 /*   By: edubois- <edubois-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/16 14:10:55 by edubois-          #+#    #+#             */
-/*   Updated: 2025/11/16 18:58:36 by edubois-         ###   ########.fr       */
+/*   Updated: 2025/11/17 13:10:41 by edubois-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/Server.hpp"
 
-Server::Server() {};
+Server::Server() {this->ServerFdSocket = -1;}
 
-Server::~Server() {};
+Server::~Server(){}
+
+Server::Server(Server const &src) {*this = src;}
+
+Server &Server::operator=(Server const &src)
+{
+	if (this != &src)
+	{
+		this->Port = src.Port;
+		this->ServerFdSocket = src.ServerFdSocket;
+		this->password = src.password;
+		this->clients = src.clients;
+		this->channels = src.channels;
+		this->fds = src.fds;
+	}
+	return *this;
+}
         
 int Server::GetPort()
 {
@@ -26,6 +42,25 @@ int Server::GetFd()
     return this->ServerFdSocket;
 }
 
+Channel *Server::GetChannel(std::string name)
+{
+	for (size_t i = 0; i < this->channels.size(); i++)
+	{
+		if (this->channels[i].GetServerName() == name)
+			return &channels[i];
+	}
+	return NULL;
+}
+
+Client *Server::GetServerClientNick(std::string nickname)
+{
+	for (size_t i = 0; i < this->clients.size(); i++){
+		if (this->clients[i].GetNickName() == nickname)
+			return &this->clients[i];
+	}
+	return NULL;
+}
+
 Client *Server::GetServerClient(int fd)
 {
 	for (size_t i = 0; i < this->clients.size(); i++)
@@ -35,6 +70,20 @@ Client *Server::GetServerClient(int fd)
 	}
 	return NULL;
 }
+
+void Server::SetFd(int fd){this->ServerFdSocket = fd;}
+
+void Server::SetPort(int port){this->Port = port;}
+
+void Server::SetPassword(std::string password){this->password = password;}
+
+std::string Server::GetPassword(){return this->password;}
+
+void Server::AddClient(Client newClient){this->clients.push_back(newClient);}
+
+void Server::AddChannel(Channel newChannel){this->channels.push_back(newChannel);}
+
+void Server::AddFds(pollfd newFd){this->fds.push_back(newFd);}
 
 void Server::senderror(int code, std::string clientname, int fd, std::string msg)
 {
@@ -59,6 +108,7 @@ void Server::_sendResponse(std::string response, int fd)
 	if(send(fd, response.c_str(), response.size(), 0) == -1)
 		std::cerr << "Response send() failed!" << std::endl;
 }
+
 bool Server::StopSignal = false;
 
 void Server::SignalHandler(int signum)
@@ -159,7 +209,7 @@ void    Server::AcceptNewClient()
     NewClient.fd = IncomeFD;
 
     client.SetFd(IncomeFD);
-    client.SetIPadd(inet_ntoa(ClientAdd.sin_addr));
+    client.setIpAdd(inet_ntoa(ClientAdd.sin_addr));
     clients.push_back(client);
 	fds.push_back(NewClient);
 
@@ -194,20 +244,27 @@ void    Server::ReceiveNewData(int fd)
 	}
 }
 
+bool Server::notregistered(int fd)
+{
+	if (!GetServerClient(fd) || GetServerClient(fd)->GetNickName().empty() || GetServerClient(fd)->GetUserName().empty() || GetServerClient(fd)->GetNickName() == "*"  || !GetServerClient(fd)->GetLogedIn())
+		return false;
+	return true;
+}
+
 void Server::parseCmd(std::string &cmd, int fd)
 {
 	if(cmd.empty())
 		return ;
-	std::vector<std::string> splited_cmd = splitBuffer(cmd);
+	std::vector<std::string> splited_cmd = splitCmd(cmd);
 	size_t found = cmd.find_first_not_of(" \t\v");
 	if(found != std::string::npos)
 		cmd = cmd.substr(found);
 	if(splited_cmd.size() && (splited_cmd[0] == "BONG" || splited_cmd[0] == "bong"))
 		return;
     if(splited_cmd.size() && (splited_cmd[0] == "PASS" || splited_cmd[0] == "pass"))
-        client_authen(fd, cmd);
+        clientAuth(fd, cmd);
 	else if (splited_cmd.size() && (splited_cmd[0] == "NICK" || splited_cmd[0] == "nick"))
-		set_nickname(cmd,fd);
+		setNickname(cmd,fd);
 	else if(splited_cmd.size() && (splited_cmd[0] == "USER" || splited_cmd[0] == "user"))
 		set_username(cmd, fd);
 	else if (splited_cmd.size() && (splited_cmd[0] == "QUIT" || splited_cmd[0] == "quit"))
@@ -250,12 +307,25 @@ std::vector<std::string> Server::splitBuffer(std::string str)
 	return vec;
 }
 
+std::vector<std::string> Server::splitCmd(std::string& cmd)
+{
+	std::vector<std::string> vec;
+	std::istringstream stm(cmd);
+	std::string token;
+	while(stm >> token)
+	{
+		vec.push_back(token);
+		token.clear();
+	}
+	return vec;
+}
+
 void	Server::RmChannels(int fd)
 {
 	for (size_t i = 0; i < this->channels.size(); i++)
     {
 		int flag = 0;
-		if (channels[i].getChannelClient(fd))
+		if (channels[i].GetChannelClient(fd))
 		{
             channels[i].remove_client(fd);
             flag = 1;
@@ -265,7 +335,7 @@ void	Server::RmChannels(int fd)
             channels[i].remove_admin(fd);
             flag = 1;
         }
-		if (!channels[i].GetClientsNumber())
+		if (!channels[i].GetServerClientsNumber())
 		{
             channels.erase(channels.begin() + i);
             i--;
