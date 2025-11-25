@@ -34,6 +34,7 @@ int main(int ac, char **av)
 		if(!isPortValid(av[1]) || !*av[2] || std::strlen(av[2]) > 20)
 			{std::cout << "invalid Port number / Password!" << std::endl; return 1;}
 		ser.ServerInit(std::atoi(av[1]), av[2]);
+		ser.close_fds();
 	}
 	catch(const std::exception& e)
 	{

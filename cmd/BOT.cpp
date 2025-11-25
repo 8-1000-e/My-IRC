@@ -1,33 +1,34 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.cpp                                           :+:      :+:    :+:   */
+/*   BOT.cpp                                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: edubois- <edubois-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/11/24 14:02:11 by edubois-          #+#    #+#             */
-/*   Updated: 2025/11/25 14:05:38 by edubois-         ###   ########.fr       */
+/*   Created: 2025/11/25 15:00:00 by edubois-          #+#    #+#             */
+/*   Updated: 2025/11/25 15:00:00 by edubois-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "Bot.hpp"
+#include "../includes/Server.hpp"
+#include <fstream>
+#include <sstream>
+#include <ctime>
+#include <cstdio>
+#include <map>
 
-std::string get_project( std::string json, size_t occ_pos)
+static std::string get_project(std::string json, size_t occ_pos)
 {
-    // 1) Remonter au début du bloc JSON
     size_t start = json.rfind("{", occ_pos);
     if (start == std::string::npos)
         return "";
 
-    // 2) Chercher le champ "project" *dans ce bloc*
     const std::string key = "\"project\": \"";
     size_t proj_pos = json.find(key, start);
     if (proj_pos == std::string::npos)
         return "";
 
-    proj_pos += key.size(); // se placer juste après le dernier guillemet
-
-    // 3) Trouver la fin du nom du projet
+    proj_pos += key.size();
     size_t end = json.find("\"", proj_pos);
     if (end == std::string::npos)
         return "";
@@ -35,7 +36,7 @@ std::string get_project( std::string json, size_t occ_pos)
     return json.substr(proj_pos, end - proj_pos);
 }
 
-std::string get_bearer()
+static std::string get_bearer()
 {
     system("curl -s -X POST \
         --data \"grant_type=client_credentials&client_id=u-s4t2ud-8de6e2a010f1aec1b3125cc5e1009367c1f54f31dc284b249b097cc1557824ab&client_secret=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\" \
@@ -61,7 +62,7 @@ std::string get_bearer()
     return json.substr(proj_pos, end - proj_pos);
 }
 
-void fill_data(std::map<std::string, Info> &tab, const std::string &project)
+static void fill_data(std::map<std::string, Info> &tab, const std::string &project)
 {
     std::ifstream file("Time.json");
     std::string line;
@@ -69,7 +70,7 @@ void fill_data(std::map<std::string, Info> &tab, const std::string &project)
 
     while (std::getline(file, line))
         json += line;
-    
+
     auto project_it = json.find(project);
     json = json.substr(project_it, json.length());
     json += project_it;
@@ -84,15 +85,14 @@ void fill_data(std::map<std::string, Info> &tab, const std::string &project)
     int month = atoi(iso.substr(5, 2).c_str());
     int day   = atoi(iso.substr(8, 2).c_str());
 
-
     key = "\"mark\"";
     it = json.find(key);
     tab[project].validated = (bool)(json[it + key.size() + 2] != '0');
 
     struct tm t;
     memset(&t, 0, sizeof(t));
-    t.tm_year = year - 1900; // tm_year = années depuis 1900
-    t.tm_mon  = month - 1;   // tm_mon = 0–11
+    t.tm_year = year - 1900;
+    t.tm_mon  = month - 1;
     t.tm_mday = day;
     tab[project].created_at = mktime(&t);
 
@@ -104,26 +104,25 @@ void fill_data(std::map<std::string, Info> &tab, const std::string &project)
     day   = atoi(iso.substr(8, 2).c_str());
 
     memset(&t, 0, sizeof(t));
-    t.tm_year = year - 1900; // tm_year = années depuis 1900
-    t.tm_mon  = month - 1;   // tm_mon = 0–11
+    t.tm_year = year - 1900;
+    t.tm_mon  = month - 1;
     t.tm_mday = day;
     tab[project].marked_at = mktime(&t);
 }
 
-int days_since(time_t ts)
+static int days_since(time_t ts)
 {
     time_t now = time(NULL);
-    double diff = difftime(now, ts);  // en secondes
-    return (int)(diff / 86400);       // 86400 sec = 1 jour
+    double diff = difftime(now, ts);
+    return (int)(diff / 86400);
 }
 
-std::string human_duration(time_t duration)
+static std::string human_duration(time_t duration)
 {
-    int days  = duration / 86400;        // jours
-    int months = days / 30;              // mois approximatifs
-    int years  = days / 365;             // années approximatives
+    int days  = duration / 86400;
+    int months = days / 30;
+    int years  = days / 365;
 
-    // Années
     if (years >= 1)
     {
         char buf[64];
@@ -131,7 +130,6 @@ std::string human_duration(time_t duration)
         return std::string(buf);
     }
 
-    // Mois
     if (months >= 1)
     {
         char buf[64];
@@ -139,18 +137,23 @@ std::string human_duration(time_t duration)
         return std::string(buf);
     }
 
-    // Jours
     char buf[64];
     sprintf(buf, "%d day%s", days, (days > 1 ? "s" : ""));
     return std::string(buf);
 }
 
+static std::string int_to_string(int value)
+{
+    std::stringstream ss;
+    ss << value;
+    return ss.str();
+}
 
-void    roast(std::map<std::string, Info> tab)
+static void roast_user(std::map<std::string, Info> tab, int fd, Server *server)
 {
     std::string bestKey;
     int maxNb = -1;
-    
+
     for (std::map<std::string, Info>::iterator it = tab.begin(); it != tab.end(); ++it)
     {
         if (it->second.nb > maxNb)
@@ -159,7 +162,9 @@ void    roast(std::map<std::string, Info> tab)
             bestKey = it->first;
         }
     }
-    std::cout << "LOL, that guy really tried " << YELLOW <<bestKey << YELLOW << " " << RED <<maxNb << " times" << RESET << ", is that guy even real💀??" << std::endl;
+
+    std::string msg = "LOL, that guy really tried " + bestKey + " " + int_to_string(maxNb) + " times, is that guy even real??";
+    server->_sendResponse(":Bot!bot@localhost PRIVMSG " + server->GetServerClient(fd)->GetNickName() + " :" + msg + "\r\n", fd);
 
     std::string s_bestKey;
     maxNb = -1;
@@ -171,19 +176,25 @@ void    roast(std::map<std::string, Info> tab)
             s_bestKey = it->first;
         }
     }
-    std::cout << "AIN'T NO WAY IT TOOK BRO " << RED <<maxNb << " tries " << RESET << "to validate "  << YELLOW << s_bestKey << RESET <<  ", who's that guy ??🦧🦧" << std::endl<< std::endl<< std::endl;
+
+    msg = "AIN'T NO WAY IT TOOK BRO " + int_to_string(maxNb) + " tries to validate " + s_bestKey + ", who's that guy ??";
+    server->_sendResponse(":Bot!bot@localhost PRIVMSG " + server->GetServerClient(fd)->GetNickName() + " :" + msg + "\r\n", fd);
 
     bool registered = false;
     for (std::map<std::string, Info>::iterator it = tab.begin(); it != tab.end(); ++it)
     {
         if (!it->second.marked)
         {
-            std::cout << "Bro still hasn't done " << YELLOW << it->first << RESET << " in " << RED << days_since(it->second.created_at) << " days, " << RESET << "what the hell is he doing ??" << std::endl;
+            msg = "Bro still hasn't done " + it->first + " in " + int_to_string(days_since(it->second.created_at)) + " days, what the hell is he doing ??";
+            server->_sendResponse(":Bot!bot@localhost PRIVMSG " + server->GetServerClient(fd)->GetNickName() + " :" + msg + "\r\n", fd);
             registered = true;
         }
     }
     if (!registered)
-        std::cout << "Bro is not registered to any project ?! What the hell is he doing ??\n" << std::endl<< std::endl;
+    {
+        msg = "Bro is not registered to any project ?! What the hell is he doing ??";
+        server->_sendResponse(":Bot!bot@localhost PRIVMSG " + server->GetServerClient(fd)->GetNickName() + " :" + msg + "\r\n", fd);
+    }
 
     time_t max_time = -1;
     for (std::map<std::string, Info>::iterator it = tab.begin(); it != tab.end(); ++it)
@@ -194,7 +205,10 @@ void    roast(std::map<std::string, Info> tab)
             bestKey = it->first;
         }
     }
-    std::cout << "\nHow did it took bro " << RED << human_duration(max_time) << RESET << " to validate " << YELLOW << bestKey  << RESET<< "?! How did bro struggle this much !?!" <<std::endl;
+
+    msg = "How did it took bro " + human_duration(max_time) + " to validate " + bestKey + "?! How did bro struggle this much !?!";
+    server->_sendResponse(":Bot!bot@localhost PRIVMSG " + server->GetServerClient(fd)->GetNickName() + " :" + msg + "\r\n", fd);
+
     max_time = -1;
     for (std::map<std::string, Info>::iterator it = tab.begin(); it != tab.end(); ++it)
     {
@@ -204,28 +218,41 @@ void    roast(std::map<std::string, Info> tab)
             s_bestKey = it->first;
         }
     }
-    std::cout << "Serioulsy ??? " << RED << human_duration(max_time) << RESET << " to make " << YELLOW << s_bestKey << RESET << " how is it possible??\n" << std::endl<< std::endl;
+
+    msg = "Seriously ??? " + human_duration(max_time) + " to make " + s_bestKey + " how is it possible??";
+    server->_sendResponse(":Bot!bot@localhost PRIVMSG " + server->GetServerClient(fd)->GetNickName() + " :" + msg + "\r\n", fd);
 
     for (std::map<std::string, Info>::iterator it = tab.begin(); it != tab.end(); ++it)
     {
         if (!it->second.validated && it->second.marked)
-            std::cout << "How did bro " << RED << "failed " << YELLOW << it->first  << RESET << " ?!"<< std::endl;
+        {
+            msg = "How did bro failed " + it->first + " ?!";
+            server->_sendResponse(":Bot!bot@localhost PRIVMSG " + server->GetServerClient(fd)->GetNickName() + " :" + msg + "\r\n", fd);
+        }
     }
-
 }
 
-int main(int argc, char **argv)
+void Server::BOT(std::string cmd, int fd)
 {
-    if (argc != 2)
+    std::vector<std::string> splited = splitCmd(cmd);
+
+    if (splited.size() < 2)
     {
-        std::cout << "Usage ./a.out <42-login>" << std::endl;
-        return 0;
+        _sendResponse(":Bot!bot@localhost PRIVMSG " + GetServerClient(fd)->GetNickName() + " :Usage: BOT <42-login>\r\n", fd);
+        return;
     }
+
+    std::string login = splited[1];
     std::string BEARER = get_bearer();
-    // std::cout<< "BEARER = "<< BEARER << std::endl << std::endl << std::endl << std::endl ;
+
+    if (BEARER.empty())
+    {
+        _sendResponse(":Bot!bot@localhost PRIVMSG " + GetServerClient(fd)->GetNickName() + " :Error: Could not authenticate with 42 API\r\n", fd);
+        return;
+    }
 
     std::string payload = "curl -s -H \"Authorization: Bearer "+BEARER+ "\" \
-  https://api.intra.42.fr/v2/users/"+argv[1]+"/projects_users \
+  https://api.intra.42.fr/v2/users/"+login+"/projects_users \
   | jq '.[] | {project: .project.name, occurrence: .occurrence, mark: .final_mark, status: .status}' > Occu.json";
 
     system(payload.c_str());
@@ -236,59 +263,44 @@ int main(int argc, char **argv)
 
     while (std::getline(file, line))
         json += line;
+
     if (json.empty())
     {
-        std::cerr << "Could not find " << argv[1] << "!" << std::endl; 
-        return 0;
+        _sendResponse(":Bot!bot@localhost PRIVMSG " + GetServerClient(fd)->GetNickName() + " :Error: Could not find user '" + login + "'\r\n", fd);
+        remove("Occu.json");
+        return;
     }
+
     std::string key = "occurrence";
-
-
     std::map<std::string, Info> tab;
     auto it = json.find(key);
-    // std::cout << "json = " << json << std::endl<< std::endl<< std::endl<< std::endl;
     Info info;
+
     while (it != std::string::npos)
     {
         std::string project = get_project(json, it);
         if (project.empty())
-            break ;
+            break;
         int nb = json[it + key.size() + 3] - '0';
         if (isdigit(json[it + key.size() + 4]))
             nb = nb * 10 + json[it + key.size() + 4] - '0';
         info.nb = ++nb;
-        tab[project] = info;        
+        tab[project] = info;
         it = json.find(key, it + key.size());
     }
 
-    //fill_Data
     BEARER = get_bearer();
-
-
     payload = "curl -s -H \"Authorization: Bearer " + BEARER + "\" \
-    'https://api.intra.42.fr/v2/users/" + argv[1] + "/projects_users' \
+    'https://api.intra.42.fr/v2/users/" + login + "/projects_users' \
     | jq '.[]| {project_name: .project.name, marked: .marked, mark: .final_mark, marked_at: .marked_at, created_at: .created_at}' > Time.json";
 
     system(payload.c_str());
-    for (std::map<std::string ,Info>::iterator it = tab.begin(); it != tab.end(); it++)
+
+    for (std::map<std::string, Info>::iterator it = tab.begin(); it != tab.end(); it++)
         fill_data(tab, it->first);
+
     remove("Time.json");
     remove("Occu.json");
-        // 
-    // for (std::map<std::string ,Info>::iterator it = tab.begin(); it != tab.end(); it++)
-    // {
-    // std::cout << "-----------------------------\n";
-    // std::cout << "Project:     " << it->first << "\n";
-    // std::cout << "validated:      " << (it->second.validated ? "true" : "false") << "\n";
-    // std::cout << "try:          " << it->second.nb << "\n";
-    // std::cout << "marked:      " << (it->second.marked ? "true" : "false") << "\n";
-    // std::cout << "created_at:  " << it->second.created_at << "\n";
-    // std::cout << "marked_at:   " << it->second.marked_at << "\n";
-    // std::cout << "-----------------------------\n\n";
-    // }
 
-    roast(tab);
+    roast_user(tab, fd, this);
 }
-
-
-

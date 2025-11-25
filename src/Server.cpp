@@ -111,7 +111,7 @@ void Server::_sendResponse(std::string response, int fd)
 
 bool Server::StopSignal = false;
 
-void Server::SignalHandler(int signum)
+void Server::signalHandler(int signum)
 {
 	(void)signum;
 	std::cout << std::endl << "StopSignal Received!" << std::endl;
@@ -285,6 +285,8 @@ void Server::parseCmd(std::string &cmd, int fd)
 			PRIVMSG(cmd, fd);
 		else if (splited_cmd.size() && (splited_cmd[0] == "INVITE" || splited_cmd[0] == "invite"))
 			Invite(cmd,fd);
+		else if (splited_cmd.size() && (splited_cmd[0] == "BOT" || splited_cmd[0] == "bot"))
+			BOT(cmd, fd);
 		else if (splited_cmd.size())
 			_sendResponse(ERR_CMDNOTFOUND(GetServerClient(fd)->GetNickName(),splited_cmd[0]),fd);
 	}

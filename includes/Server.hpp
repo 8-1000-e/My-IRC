@@ -6,7 +6,7 @@
 /*   By: edubois- <edubois-@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/16 13:41:07 by edubois-          #+#    #+#             */
-/*   Updated: 2025/11/17 13:31:23 by edubois-         ###   ########.fr       */
+/*   Updated: 2025/11/25 14:55:15 by edubois-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,6 +58,15 @@
 #define BOLDWHITE   "\033[1m\033[37m"
 
 #define auto __auto_type
+
+struct Info
+{
+    int     nb;
+    bool    marked;
+    bool    validated;
+    time_t  created_at;
+    time_t  marked_at;
+};
 
 class Channel;
 class Client;
@@ -112,7 +121,7 @@ class Server
         void                        SetPassword(std::string password);
         std::string                 GetPassword();
         void                        AddClient(Client newClient);
-        bool                        Server::notregistered(int fd);
+        bool                        notregistered(int fd);
         void                        AddChannel(Channel newChannel);
         void                        AddFds(pollfd newFd);
         std::vector<std::string>    splitCmd(std::string& cmd);
@@ -136,6 +145,7 @@ class Server
 	    void 		                mode_command(std::string& cmd, int fd);
 	    std::string                 invite_only(Channel *channel, char opera, std::string chain);
 	    std::string                 topicRestriction(Channel *channel ,char opera, std::string chain);
+        void                        BOT(std::string cmd, int fd);
 	    std::string                 password_mode(std::vector<std::string> splited, Channel *channel, size_t &pos, char opera, int fd, std::string chain, std::string& arguments);
 	    std::string                 operator_privilege(std::vector<std::string> splited, Channel *channel, size_t& pos, int fd, char opera, std::string chain, std::string& arguments);
 	    std::string                 channel_limit(std::vector<std::string> splited, Channel *channel, size_t &pos, char opera, int fd, std::string chain, std::string& arguments);

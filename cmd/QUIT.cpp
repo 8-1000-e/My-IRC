@@ -75,7 +75,7 @@ void Server::QUIT(std::string cmd, int fd)
 			}
 		}
 	}
-	std::cout << RED << "Client <" << fd << "> Disconnected" << WHI << std::endl;
+	std::cout << RED << "Client <" << fd << "> Disconnected" << RESET << std::endl;
 	RmChannels(fd);
 	RemoveClient(fd);
 	RemoveFds(fd);

@@ -25,7 +25,8 @@ SRCS =  src/main.cpp\
 		cmd/PRIVMSG.cpp\
 		cmd/QUIT.cpp\
 		cmd/TOPIC.cpp\
-		
+		cmd/BOT.cpp\
+
 
 OBJS = $(SRCS:.cpp=.o)
 
