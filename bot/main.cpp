@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: edubois- <edubois-@student.42.fr>          +#+  +:+       +#+        */
+/*   By: emile <emile@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/24 14:02:11 by edubois-          #+#    #+#             */
-/*   Updated: 2025/11/24 16:34:43 by edubois-         ###   ########.fr       */
+/*   Updated: 2025/11/24 17:09:48 by emile            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,7 +61,7 @@ std::string get_bearer()
     return json.substr(proj_pos, end - proj_pos);
 }
 
-void get_time(std::map<std::string, Info> tab, std::string project, std::string name)
+void get_time(std::map<std::string, Info> &tab, const std::string &project, const std::string &name)
 {
     std::string BEARER = get_bearer();
 
@@ -81,8 +81,6 @@ void get_time(std::map<std::string, Info> tab, std::string project, std::string 
         
     std::string key = "\"marked\"";
     auto it = json.find(key);
-    std::cout << "project = " << project << std::endl;
-    std::cout << "value = " <<json[it + key.size() + 2] << std::endl;
     tab[project].marked = (bool)(json[it + key.size() + 2] == 't');
 
     key = "created_at";
@@ -115,6 +113,11 @@ void get_time(std::map<std::string, Info> tab, std::string project, std::string 
 
 int main(int argc, char **argv)
 {
+    if (argc != 2)
+    {
+        std::cout << "Usage ./a.out <login>" << std::endl;
+        return 0;
+    }
     std::string BEARER = get_bearer();
     // std::cout<< "BEARER = "<< BEARER << std::endl << std::endl << std::endl << std::endl ;
 
@@ -123,7 +126,7 @@ int main(int argc, char **argv)
   | jq '.[] | {project: .project.name, occurrence: .occurrence, mark: .final_mark, status: .status}' > Occu.json";
 
     system(payload.c_str());
-        
+
     std::ifstream file("Occu.json");
     std::string line;
     std::string json;
@@ -153,7 +156,8 @@ int main(int argc, char **argv)
 
     for (std::map<std::string ,Info>::iterator it = tab.begin(); it != tab.end(); it++)
         get_time(tab, it->first, argv[1]);
-    remove("Time.json");
+        remove("Time.json");
+        
     for (std::map<std::string ,Info>::iterator it = tab.begin(); it != tab.end(); it++)
     {
     std::cout << "-----------------------------\n";
